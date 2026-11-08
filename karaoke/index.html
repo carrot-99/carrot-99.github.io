@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>カラオケ最高点</title>
+<meta name="theme-color" content="#1b1530">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="カラオケ点数">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<style>
+:root{
+  --bg:#f5f3fa; --card:#fff; --text:#1d1a26; --sub:#6e6880; --line:#e6e2ef;
+  --dam:#e0303f; --dam-bg:#fde8ea; --joy:#1f6fe5; --joy-bg:#e5effd;
+  --accent:#6a4cff; --danger:#d22;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#14111d; --card:#211c2e; --text:#f0edf7; --sub:#a29bb5; --line:#332c45;
+    --dam:#ff5d6a; --dam-bg:#3a1c22; --joy:#5b9bff; --joy-bg:#16263f; --accent:#8b73ff; }
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif}
+header{position:sticky;top:0;z-index:5;background:var(--bg);
+  padding:calc(env(safe-area-inset-top) + 12px) 16px 10px;border-bottom:1px solid var(--line)}
+.top{display:flex;align-items:center;justify-content:space-between}
+h1{font-size:20px;margin:0}
+.iconbtn{border:0;background:none;color:var(--text);font-size:22px;padding:4px 8px;cursor:pointer}
+.stats{display:flex;gap:8px;margin:10px 0}
+.stat{flex:1;background:var(--card);border-radius:12px;padding:8px 10px;border:1px solid var(--line)}
+.stat b{display:block;font-size:18px}
+.stat span{font-size:11px;color:var(--sub)}
+.stat.dam b{color:var(--dam)} .stat.joy b{color:var(--joy)}
+input,select{font:inherit;color:var(--text);background:var(--card);border:1px solid var(--line);
+  border-radius:10px;padding:10px 12px;width:100%}
+.controls{display:flex;gap:8px;margin-top:8px}
+.controls select{flex:1;padding:8px}
+ul{list-style:none;margin:0;padding:8px 16px 120px}
+li{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;
+  margin-bottom:8px;display:flex;align-items:center;gap:10px;cursor:pointer}
+.info{flex:1;min-width:0}
+.title{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.artist{font-size:12px;color:var(--sub);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.score{width:58px;text-align:center;border-radius:10px;padding:5px 0;font-weight:700;font-size:17px;line-height:1.1}
+.score small{display:block;font-size:9px;font-weight:600;opacity:.8}
+.score.dam{background:var(--dam-bg);color:var(--dam)}
+.score.joy{background:var(--joy-bg);color:var(--joy)}
+.score.none{opacity:.35}
+.empty{text-align:center;color:var(--sub);padding:40px 0}
+.fab{position:fixed;right:20px;bottom:calc(env(safe-area-inset-bottom) + 20px);width:60px;height:60px;
+  border-radius:50%;border:0;background:var(--accent);color:#fff;font-size:32px;
+  box-shadow:0 6px 18px rgba(0,0,0,.25);cursor:pointer}
+dialog{border:0;border-radius:18px;padding:0;width:min(440px,calc(100% - 32px));
+  background:var(--card);color:var(--text)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+.dlg{padding:20px}
+.dlg h2{margin:0 0 14px;font-size:18px}
+label{display:block;font-size:13px;color:var(--sub);margin:10px 0 4px}
+.row2{display:flex;gap:10px}.row2>div{flex:1}
+.lbl-dam{color:var(--dam);font-weight:600}.lbl-joy{color:var(--joy);font-weight:600}
+.btns{display:flex;gap:8px;margin-top:18px}
+.btn{flex:1;border:0;border-radius:10px;padding:12px;font:inherit;font-weight:600;cursor:pointer;
+  background:var(--line);color:var(--text)}
+.btn.primary{background:var(--accent);color:#fff}
+.btn.danger{background:none;color:var(--danger);flex:0 0 auto}
+.menu .btn{display:block;width:100%;margin-bottom:8px;text-align:left}
+.note{font-size:12px;color:var(--sub);line-height:1.6}
+.toast{position:fixed;left:50%;bottom:100px;transform:translateX(-50%);background:#000c;color:#fff;
+  padding:10px 16px;border-radius:20px;font-size:14px;opacity:0;transition:.3s;pointer-events:none}
+.toast.show{opacity:1}
+.prev{font-size:11px;color:var(--sub);margin-top:3px}
+</style>
+</head>
+<body>
+<header>
+  <div class="top">
+    <h1>🎤 カラオケ最高点</h1>
+    <button class="iconbtn" id="menuBtn" aria-label="メニュー">⋯</button>
+  </div>
+  <div class="stats">
+    <div class="stat"><b id="stCount">0</b><span>曲</span></div>
+    <div class="stat dam"><b id="stDam">-</b><span>DAM 最高</span></div>
+    <div class="stat joy"><b id="stJoy">-</b><span>JOYSOUND 最高</span></div>
+  </div>
+  <input id="q" type="search" placeholder="曲名・アーティストで検索">
+  <div class="controls">
+    <select id="sort">
+      <option value="dam">DAMが高い順</option>
+      <option value="joy">JOYSOUNDが高い順</option>
+      <option value="best">どちらか高い方順</option>
+      <option value="title">曲名順</option>
+      <option value="artist">アーティスト順</option>
+      <option value="updated">更新が新しい順</option>
+    </select>
+    <select id="filter">
+      <option value="all">すべて</option>
+      <option value="noDam">DAM未記録</option>
+      <option value="noJoy">JOY未記録</option>
+      <option value="noArtist">アーティスト未入力</option>
+    </select>
+  </div>
+</header>
+
+<ul id="list"></ul>
+<button class="fab" id="addBtn" aria-label="曲を追加">＋</button>
+
+<dialog id="editDlg"><form class="dlg" method="dialog" id="editForm">
+  <h2 id="editTitle">曲を追加</h2>
+  <label>曲名</label>
+  <input id="fTitle" required autocomplete="off">
+  <label>アーティスト</label>
+  <input id="fArtist" autocomplete="off" list="artistList">
+  <datalist id="artistList"></datalist>
+  <div class="row2">
+    <div><label class="lbl-dam">DAM</label>
+      <input id="fDam" type="number" inputmode="decimal" step="0.001" min="0" max="100">
+      <div class="prev" id="pDam"></div></div>
+    <div><label class="lbl-joy">JOYSOUND</label>
+      <input id="fJoy" type="number" inputmode="decimal" step="0.001" min="0" max="100">
+      <div class="prev" id="pJoy"></div></div>
+  </div>
+  <div class="btns">
+    <button type="button" class="btn danger" id="delBtn">削除</button>
+    <button type="button" class="btn" id="cancelBtn">キャンセル</button>
+    <button type="submit" class="btn primary">保存</button>
+  </div>
+</form></dialog>
+
+<dialog id="menuDlg"><div class="dlg menu">
+  <h2>データ</h2>
+  <button class="btn" id="exportBtn">⬇︎ CSVで書き出し（バックアップ）</button>
+  <button class="btn" id="importBtn">⬆︎ CSVを読み込み（上書き）</button>
+  <input type="file" id="importFile" accept=".csv,text/csv,text/plain" hidden>
+  <button class="btn" id="resetBtn" style="color:var(--danger)">全データを削除</button>
+  <p class="note">データはこの端末のブラウザ内だけに保存され、外部には送信されません。
+  機種変更やブラウザのデータ削除に備えて、ときどきCSVで書き出しておくと安心です。<br>
+  CSVは「曲名, アーティスト, DAM, Joysound」の列順です（Googleスプレッドシートの「曲名, DAM, Joysound」形式もそのまま読めます）。</p>
+  <div class="btns"><button class="btn" id="menuClose">閉じる</button></div>
+</div></dialog>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const KEY = 'karaoke-scores-v1';
+const SEED = [];
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+const seedSongs = () => SEED.map(([t,d,j],i)=>({id:uid()+i,title:t,artist:'',dam:d,joy:j,updated:0}));
+
+let songs = load();
+let editingId = null;
+
+function load(){
+  try{ const raw = localStorage.getItem(KEY); if(raw) return JSON.parse(raw); }catch(e){}
+  const s = seedSongs(); persist(s); return s;
+}
+function persist(s = songs){
+  try{ localStorage.setItem(KEY, JSON.stringify(s)); }catch(e){ toast('保存できませんでした'); }
+}
+if(navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(()=>{});
+
+const $ = id => document.getElementById(id);
+const fmt = v => v==null || v==='' ? '—' : (Number.isInteger(+v) ? String(+v) : (+v).toFixed(3).replace(/0+$/,'').replace(/\.$/,''));
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const num = v => v==null ? -1 : +v;
+const coll = new Intl.Collator('ja');
+
+function render(){
+  const q = $('q').value.trim().toLowerCase();
+  const sort = $('sort').value, filter = $('filter').value;
+  let rows = songs.filter(s => !q || s.title.toLowerCase().includes(q) || (s.artist||'').toLowerCase().includes(q));
+  if(filter==='noDam') rows = rows.filter(s=>s.dam==null);
+  if(filter==='noJoy') rows = rows.filter(s=>s.joy==null);
+  if(filter==='noArtist') rows = rows.filter(s=>!s.artist);
+  const cmp = {
+    dam:(a,b)=>num(b.dam)-num(a.dam) || num(b.joy)-num(a.joy),
+    joy:(a,b)=>num(b.joy)-num(a.joy) || num(b.dam)-num(a.dam),
+    best:(a,b)=>Math.max(num(b.dam),num(b.joy))-Math.max(num(a.dam),num(a.joy)),
+    title:(a,b)=>coll.compare(a.title,b.title),
+    artist:(a,b)=>coll.compare(a.artist||'\uffff',b.artist||'\uffff') || coll.compare(a.title,b.title),
+    updated:(a,b)=>(b.updated||0)-(a.updated||0)
+  }[sort];
+  rows.sort(cmp);
+  $('list').innerHTML = rows.length ? rows.map(s=>`
+    <li data-id="${s.id}">
+      <div class="info"><div class="title">${esc(s.title)}</div>
+        <div class="artist">${s.artist?esc(s.artist):'&nbsp;'}</div></div>
+      <div class="score dam ${s.dam==null?'none':''}"><small>DAM</small>${fmt(s.dam)}</div>
+      <div class="score joy ${s.joy==null?'none':''}"><small>JOY</small>${fmt(s.joy)}</div>
+    </li>`).join('') : `<div class="empty">${songs.length?'該当する曲がありません':'まだ曲がありません<br>右下の＋で追加するか、右上の⋯からCSVを読み込んでください'}</div>`;
+  const d = songs.filter(s=>s.dam!=null).map(s=>+s.dam), j = songs.filter(s=>s.joy!=null).map(s=>+s.joy);
+  $('stCount').textContent = songs.length;
+  $('stDam').textContent = d.length ? fmt(Math.max(...d)) : '-';
+  $('stJoy').textContent = j.length ? fmt(Math.max(...j)) : '-';
+  const artists = [...new Set(songs.map(s=>s.artist).filter(Boolean))].sort(coll.compare);
+  $('artistList').innerHTML = artists.map(a=>`<option value="${esc(a)}">`).join('');
+}
+
+function openEdit(id){
+  editingId = id;
+  const s = songs.find(x=>x.id===id);
+  $('editTitle').textContent = s ? '記録を編集' : '曲を追加';
+  $('fTitle').value = s ? s.title : '';
+  $('fArtist').value = s ? (s.artist||'') : '';
+  $('fDam').value = s && s.dam!=null ? s.dam : '';
+  $('fJoy').value = s && s.joy!=null ? s.joy : '';
+  $('pDam').textContent = s && s.dam!=null ? `現在：${fmt(s.dam)}` : '';
+  $('pJoy').textContent = s && s.joy!=null ? `現在：${fmt(s.joy)}` : '';
+  $('delBtn').style.display = s ? '' : 'none';
+  $('editDlg').showModal();
+  if(!s) $('fTitle').focus();
+}
+
+$('editForm').addEventListener('submit', e=>{
+  e.preventDefault();
+  const title = $('fTitle').value.trim();
+  if(!title) return;
+  const parse = v => v.trim()==='' ? null : Math.min(100, Math.max(0, +v));
+  const data = {title, artist:$('fArtist').value.trim(), dam:parse($('fDam').value), joy:parse($('fJoy').value), updated:Date.now()};
+  const dup = songs.find(x=>x.id!==editingId && x.title===title && (x.artist||'')===data.artist);
+  if(dup && !confirm('同じ曲名・アーティストの曲がすでにあります。追加しますか？')) return;
+  const s = songs.find(x=>x.id===editingId);
+  let msg = '保存しました';
+  if(s){
+    if((s.dam!=null && data.dam!=null && data.dam>s.dam) || (s.joy!=null && data.joy!=null && data.joy>s.joy)) msg = '🎉 自己ベスト更新！';
+    Object.assign(s, data);
+  } else songs.push({id:uid(), ...data});
+  persist(); render(); $('editDlg').close(); toast(msg);
+});
+$('cancelBtn').onclick = ()=> $('editDlg').close();
+$('delBtn').onclick = ()=>{
+  const s = songs.find(x=>x.id===editingId);
+  if(s && confirm(`「${s.title}」を削除しますか？`)){
+    songs = songs.filter(x=>x.id!==editingId); persist(); render(); $('editDlg').close(); toast('削除しました');
+  }
+};
+$('list').addEventListener('click', e=>{ const li = e.target.closest('li'); if(li) openEdit(li.dataset.id); });
+$('addBtn').onclick = ()=> openEdit(null);
+['q','sort','filter'].forEach(id => $(id).addEventListener('input', render));
+try{ const pref = JSON.parse(localStorage.getItem(KEY+'-ui')||'{}'); if(pref.sort) $('sort').value = pref.sort; }catch(e){}
+$('sort').addEventListener('change', ()=>{ try{ localStorage.setItem(KEY+'-ui', JSON.stringify({sort:$('sort').value})); }catch(e){} });
+
+// ---- menu / CSV ----
+$('menuBtn').onclick = ()=> $('menuDlg').showModal();
+$('menuClose').onclick = ()=> $('menuDlg').close();
+const csvCell = v => { v = v==null ? '' : String(v); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; };
+$('exportBtn').onclick = async ()=>{
+  const csv = '\ufeff曲名,アーティスト,DAM,Joysound\n' + songs.map(s=>[s.title,s.artist,s.dam,s.joy].map(csvCell).join(',')).join('\n');
+  const name = `karaoke_${new Date().toISOString().slice(0,10)}.csv`;
+  const file = new File([csv], name, {type:'text/csv'});
+  if(navigator.canShare && navigator.canShare({files:[file]})){
+    try{ await navigator.share({files:[file], title:name}); return; }catch(e){ if(e.name==='AbortError') return; }
+  }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = name; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+};
+function parseCSV(text){
+  const rows=[]; let row=[], cur='', q=false;
+  text = text.replace(/^\ufeff/,'');
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(q){ if(c==='"'){ if(text[i+1]==='"'){cur+='"';i++;} else q=false; } else cur+=c; }
+    else if(c==='"') q=true;
+    else if(c===','){ row.push(cur); cur=''; }
+    else if(c==='\n'||c==='\r'){ if(c==='\r'&&text[i+1]==='\n') i++; row.push(cur); rows.push(row); row=[]; cur=''; }
+    else cur+=c;
+  }
+  if(cur!==''||row.length){ row.push(cur); rows.push(row); }
+  return rows.filter(r=>r.some(c=>c.trim()!==''));
+}
+$('importBtn').onclick = ()=> $('importFile').click();
+$('importFile').onchange = async e=>{
+  const f = e.target.files[0]; if(!f) return;
+  const rows = parseCSV(await f.text());
+  e.target.value = '';
+  if(!rows.length) return toast('データがありません');
+  const head = rows[0].map(h=>h.trim().toLowerCase());
+  let idx = {title:0, artist:1, dam:2, joy:3}, body = rows;
+  if(head.some(h=>h.includes('曲名')||h.includes('dam'))){
+    body = rows.slice(1);
+    const find = keys => head.findIndex(h=>keys.some(k=>h.includes(k)));
+    idx = {title:find(['曲名','title']), artist:find(['アーティスト','歌手','artist']), dam:find(['dam']), joy:find(['joy'])};
+  } else if(rows[0].length===3) idx = {title:0, artist:-1, dam:1, joy:2};
+  const n = v => { if(v==null) return null; v = v.trim(); return v==='' || isNaN(+v) ? null : +v; };
+  const imported = body.map(r=>({id:uid(), title:(r[idx.title]||'').trim(), artist:idx.artist>=0?(r[idx.artist]||'').trim():'',
+    dam:idx.dam>=0?n(r[idx.dam]):null, joy:idx.joy>=0?n(r[idx.joy]):null, updated:0})).filter(s=>s.title);
+  if(!imported.length) return toast('読み込める曲がありません');
+  if(!confirm(`${imported.length}曲を読み込みます。今のデータは置き換えられます。よろしいですか？`)) return;
+  songs = imported; persist(); render(); $('menuDlg').close(); toast(`${imported.length}曲を読み込みました`);
+};
+$('resetBtn').onclick = ()=>{
+  if(confirm('すべての曲データを削除します。元に戻せません。よろしいですか？')){
+    songs = seedSongs(); persist(); render(); $('menuDlg').close(); toast('全データを削除しました');
+  }
+};
+
+let tt; function toast(m){ const t=$('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(tt); tt=setTimeout(()=>t.classList.remove('show'),1800); }
+
+if('serviceWorker' in navigator && location.protocol.startsWith('http')){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+render();
+</script>
+</body>
+</html>
